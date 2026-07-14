@@ -1,0 +1,58 @@
+services:
+  app:
+    build:
+      context: ./docker/php
+    container_name: teste_esferas_app
+    ports:
+      - "8090:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./db:/var/www/html/db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: teste_esferas
+      DB_USER: teste_esferas
+      DB_PASSWORD: teste_esferas
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:15-alpine
+    container_name: teste_esferas_db
+    environment:
+      POSTGRES_DB: teste_esferas
+      POSTGRES_USER: teste_esferas
+      POSTGRES_PASSWORD: teste_esferas
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teste_esferas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: teste_esferas_redis
+    ports:
+      - "6390:6379"
+
+  adminer:
+    image: adminer:4
+    container_name: teste_esferas_adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
