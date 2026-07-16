@@ -20,6 +20,7 @@ document.addEventListener('submit', function (event) {
             if (feedback) {
                 feedback.textContent = data.message || 'Atualizado.';
             }
+            window.location.reload();
         })
         .catch(() => {
             if (feedback) {

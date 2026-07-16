@@ -43,6 +43,11 @@ class CatalogController
         ');
         $stmt->execute(['price' => $price, 'stock' => $stock, 'id' => $id]);
 
+        /* Bump da geração invalida todas as chaves de catalog:* (todas as
+        categorias + "all") de uma vez, sem precisar de KEYS/SCAN nem saber
+        quais categorias o produto afeta.*/
+        RedisClient::connection()->incr('catalog:gen');
+
         header('Content-Type: application/json');
         echo json_encode([
             'message' => 'Produto atualizado. Se o catálogo estiver em cache, ele precisa refletir esta mudança.',
@@ -50,6 +55,24 @@ class CatalogController
     }
 
     private function fetchCatalog(?string $category): array
+    {
+        $redis = RedisClient::connection();
+        $gen = (int) $redis->get('catalog:gen');
+        $cacheKey = "catalog:v{$gen}:" . ($category ?: 'all');
+
+        $cached = $redis->get($cacheKey);
+        if ($cached !== false) {
+            return json_decode($cached, true);
+        }
+
+        $products = $this->queryCatalog($category);
+
+        $redis->setex($cacheKey, 300, json_encode($products));
+
+        return $products;
+    }
+
+    private function queryCatalog(?string $category): array
     {
         $pdo = Database::connection();
 
